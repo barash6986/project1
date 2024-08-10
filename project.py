@@ -6,6 +6,7 @@ import pyautogui
 import threading
 import webbrowser
 import time
+import win10toast
 
 bot = telebot.TeleBot('7429781312:AAFzIFy7dvJLQtGbXaAfXZwms9TFjXNmpbs')
 
@@ -50,6 +51,10 @@ def callback(query):
     elif query.data == 'Off_PC':
         bot.edit_message_text(message_id=query.message.id, chat_id=query.from_user.id, text='Выключаю компьютер')
         os.system('shutdown /s /t 1')
+    elif query.data == 'Notification':
+        bot.edit_message_text(message_id=query.message.id, chat_id=query.from_user.id, text='Введите уведомление для отправки', reply_markup=types.InlineKeyboardMarkup().add(
+                                  types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
+        bot.register_next_step_handler(query.message, notification)
 
 
 def apps(query):
@@ -64,7 +69,14 @@ def apps(query):
                                                                                         'вы хотите открыть',
                           reply_markup=kb)
 
-
+def notification(message):
+    try:
+        toaster = win10toast.ToastNotifier()
+        toaster.show_toast(message.text, message.text)
+    except:
+        pass
+    bot.send_message(chat_id=message.chat.id, text='Уведомление успешно отправленно', reply_markup=types.InlineKeyboardMarkup().add(
+                                  types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
 def search(message):
     webbrowser.open_new('https://www.google.ru/search?q=' + message.text.replace(' ', '+'))
     time.sleep(3)
@@ -72,12 +84,15 @@ def search(message):
     bot.send_photo(message.chat.id, image, reply_markup=types.InlineKeyboardMarkup().add(
         types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
 
+
 def paint(query):
     os.startfile('C:\\Windows\\system32\\mspaint.exe')
     bot.edit_message_text(message_id=query.message.id, chat_id=query.message.chat.id,
                           text="Запустил приложение " + query.data,
                           reply_markup=types.InlineKeyboardMarkup().add(
                               types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
+
+
 def screenshot(query):
     bot.delete_message(query.message.chat.id, query.message.message_id)
     bot.send_photo(chat_id=query.message.chat.id, photo=pyautogui.screenshot(),
@@ -134,15 +149,18 @@ def menu(message):
     else:
         bot.edit_message_text(message_id=message.id, chat_id=message.chat.id, text='Главное меню', reply_markup=kb)
 
+
 def main_menu():
     kb = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton(text='Приложения', callback_data='Apps')
     btn2 = types.InlineKeyboardButton(text='Сделать скриншот', callback_data='Screenshot')
     btn3 = types.InlineKeyboardButton(text='Запустить код', callback_data='Python')
     btn4 = types.InlineKeyboardButton(text='Найти информацию', callback_data='Search')
+    btn6 = types.InlineKeyboardButton(text='Вывести уведомление на экран', callback_data='Notification')
     btn5 = types.InlineKeyboardButton(text='Выключить компьютер', callback_data='Off_PC')
-    kb.add(btn1, btn2, btn3, btn4, btn5)
+    kb.add(btn1, btn2, btn3, btn4, btn5, btn6)
     return kb
+
 
 if __name__ == '__main__':
     bot.infinity_polling()
