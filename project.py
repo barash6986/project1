@@ -1,12 +1,12 @@
-import telebot
-from telebot import types
 import os
 import subprocess
-import pyautogui
 import threading
-import webbrowser
-import time
+
+import pyautogui
+import telebot
 import win10toast
+from googlesearch import search
+from telebot import types
 
 bot = telebot.TeleBot('7429781312:AAFzIFy7dvJLQtGbXaAfXZwms9TFjXNmpbs')
 
@@ -17,6 +17,11 @@ def start(message):
     bot.send_message(message.chat.id,
                      'Привет! Я бот для дистанционного управления компьютером! Выбери действие при помощи кнопок ниже!',
                      reply_markup=kb)
+
+@bot.message_handler(commands=['off'])
+def off(message):
+    bot.send_message(chat_id=message.from_user.id, text='Выключаю компьютер')
+    os.system('shutdown /s /t 1')
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -32,7 +37,7 @@ def callback(query):
         threading.Thread(target=screenshot, args=(query,)).start()
     elif query.data == 'Python':
         bot.edit_message_text(message_id=query.message.id, chat_id=query.from_user.id,
-                              text="Отправьте текст для запуска",
+                              text="Отправьте текст для запуска (только python код)",
                               reply_markup=types.InlineKeyboardMarkup().add(
                                   types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
         bot.register_next_step_handler(query.message, code)
@@ -45,14 +50,15 @@ def callback(query):
                               text="Отправьте текст для поиска",
                               reply_markup=types.InlineKeyboardMarkup().add(
                                   types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
-        bot.register_next_step_handler(query.message, search)
+        bot.register_next_step_handler(query.message, search_)
     elif query.data == 'Paint':
         threading.Thread(target=paint, args=(query,)).start()
     elif query.data == 'Off_PC':
-        bot.edit_message_text(message_id=query.message.id, chat_id=query.from_user.id, text='Выключаю компьютер')
-        os.system('shutdown /s /t 1')
+        bot.answer_callback_query(query.id, 'Сейчас нельзя это сделать')
     elif query.data == 'Notification':
-        bot.edit_message_text(message_id=query.message.id, chat_id=query.from_user.id, text='Введите уведомление для отправки', reply_markup=types.InlineKeyboardMarkup().add(
+        bot.edit_message_text(message_id=query.message.id, chat_id=query.from_user.id,
+                              text='Введите уведомление для отправки',
+                              reply_markup=types.InlineKeyboardMarkup().add(
                                   types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
         bot.register_next_step_handler(query.message, notification)
 
@@ -69,20 +75,31 @@ def apps(query):
                                                                                         'вы хотите открыть',
                           reply_markup=kb)
 
+
 def notification(message):
     try:
         toaster = win10toast.ToastNotifier()
         toaster.show_toast(message.text, message.text)
     except:
         pass
-    bot.send_message(chat_id=message.chat.id, text='Уведомление успешно отправленно', reply_markup=types.InlineKeyboardMarkup().add(
-                                  types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
-def search(message):
-    webbrowser.open_new('https://www.google.ru/search?q=' + message.text.replace(' ', '+'))
-    time.sleep(3)
-    image = pyautogui.screenshot(region=(950, 250, 500, 750))
-    bot.send_photo(message.chat.id, image, reply_markup=types.InlineKeyboardMarkup().add(
-        types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
+    bot.send_message(chat_id=message.chat.id, text='Уведомление успешно отправленно',
+                     reply_markup=types.InlineKeyboardMarkup().add(
+                         types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
+
+
+def search_(message):
+    global url_site
+    url_site = ''
+    for url in search(message.text, stop=1):
+        url_site = url
+    if url_site == '':
+        bot.send_message(message.chat.id, text='Запрос не найден',
+                         reply_markup=types.InlineKeyboardMarkup(row_width=1).add(
+                             types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
+    else:
+        bot.send_message(message.chat.id, text='Перейти на сайт', reply_markup=types.InlineKeyboardMarkup(row_width=1).add(
+        types.InlineKeyboardButton(text='Переход на сайт', url=url_site),
+            types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
 
 
 def paint(query):
@@ -94,7 +111,6 @@ def paint(query):
 
 
 def screenshot(query):
-    bot.delete_message(query.message.chat.id, query.message.message_id)
     bot.send_photo(chat_id=query.message.chat.id, photo=pyautogui.screenshot(),
                    reply_markup=types.InlineKeyboardMarkup().add(
                        types.InlineKeyboardButton(text='Вернуться в главное меню', callback_data='Menu')))
